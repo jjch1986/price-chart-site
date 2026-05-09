@@ -1,1 +1,599 @@
-coming soon
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Pulse</title>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --text:     #e2e8f0;
+      --muted:    #94a3b8;
+      --accent:   #6366f1;
+      --gold:     #f59e0b;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --blue:     #3b82f6;
+      --purple:   #a855f7;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    /* ── HEADER ───────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent);
+                 border-radius: 8px; display: flex; align-items: center;
+                 justify-content: center; font-size: 18px; }
+    .logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo p  { font-size: 11px; color: var(--muted); }
+    #lastUpdated { font-size: 11px; color: var(--muted); }
+
+    /* ── CONTROLS BAR ─────────────────────── */
+    .controls {
+      display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .controls label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    select, button {
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; font-size: 13px; cursor: pointer;
+    }
+    select:focus, button:focus { outline: 2px solid var(--accent); }
+    button.active { background: var(--accent); border-color: var(--accent); }
+    .tf-group { display: flex; gap: 4px; }
+    .tf-group button { padding: 5px 10px; font-size: 12px; }
+    .divider { width: 1px; height: 24px; background: var(--border); }
+
+    /* ── LAYOUT ───────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: 1fr;
+      height: calc(100vh - 105px);
+    }
+
+    /* ── SIDEBAR ──────────────────────────── */
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 8px 0;
+    }
+    .sidebar-title { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                     letter-spacing: 0.08em; padding: 6px 14px; }
+    .commodity-item {
+      padding: 8px 14px; cursor: pointer; display: flex; justify-content: space-between;
+      align-items: center; font-size: 13px; transition: background 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .commodity-item:hover   { background: rgba(99,102,241,0.1); }
+    .commodity-item.active  { background: rgba(99,102,241,0.15);
+                               border-left-color: var(--accent); }
+    .commodity-item .chg    { font-size: 11px; }
+    .chg.pos { color: var(--green); }
+    .chg.neg { color: var(--red); }
+    .chg.neu { color: var(--muted); }
+    .signal-dot { width: 7px; height: 7px; border-radius: 50%;
+                  display: inline-block; margin-left: 5px; }
+    .signal-dot.golden { background: var(--gold); }
+    .signal-dot.death  { background: var(--red); }
+
+    /* ── MAIN PANEL ───────────────────────── */
+    .main-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── STATS BAR ────────────────────────── */
+    .stats-bar {
+      display: flex; gap: 24px; padding: 10px 16px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; align-items: center;
+    }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase;
+                   letter-spacing: 0.06em; }
+    .stat .value { font-size: 14px; font-weight: 600; }
+
+    /* ── CHART AREA ───────────────────────── */
+    .chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #priceChart  { flex: 1; min-height: 0; }
+    #volumeChart { height: 100px; border-top: 1px solid var(--border); }
+    #cotChart    { height: 100px; border-top: 1px solid var(--border); }
+
+    /* ── ALERT BANNER ─────────────────────── */
+    #alertBanner {
+      display: none; align-items: center; gap: 10px;
+      padding: 8px 16px; font-size: 13px;
+    }
+    #alertBanner.golden { background: rgba(245,158,11,0.15);
+                           border-bottom: 1px solid rgba(245,158,11,0.3); }
+    #alertBanner.death  { background: rgba(239,68,68,0.12);
+                           border-bottom: 1px solid rgba(239,68,68,0.3); }
+
+    /* ── LOADING / EMPTY ─────────────────── */
+    .loading-msg {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; color: var(--muted); font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* ── LEGEND ───────────────────────────── */
+    .legend {
+      display: flex; gap: 14px; padding: 6px 14px;
+      font-size: 11px; color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .legend span { display: flex; align-items: center; gap: 4px; }
+    .legend-line { display: inline-block; width: 20px; height: 2px;
+                   border-radius: 1px; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    <div>
+      <h1>Market Pulse</h1>
+      <p>27 Commodities · Free Data</p>
+    </div>
+  </div>
+  <span id="lastUpdated">Loading…</span>
+</header>
+
+<!-- ══ CONTROLS ════════════════════════════════ -->
+<div class="controls">
+  <label>Commodity</label>
+  <select id="commoditySelect"></select>
+  <div class="divider"></div>
+  <label>Period</label>
+  <div class="tf-group" id="tfGroup">
+    <button data-days="90">3M</button>
+    <button data-days="180">6M</button>
+    <button data-days="365" class="active">1Y</button>
+    <button data-days="730">2Y</button>
+    <button data-days="1825">5Y</button>
+  </div>
+  <div class="divider"></div>
+  <label>Overlays</label>
+  <button id="toggleMA" class="active">MA 20/50</button>
+  <button id="toggleCOT">COT</button>
+</div>
+
+<!-- ══ LAYOUT ══════════════════════════════════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">Markets</div>
+    <div id="commodityList"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="main-panel">
+
+    <!-- Stats bar -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat"><span class="label">Name</span><span class="value" id="sName">—</span></div>
+      <div class="stat"><span class="label">Last</span><span class="value" id="sLast">—</span></div>
+      <div class="stat"><span class="label">Change</span><span class="value" id="sChg">—</span></div>
+      <div class="stat"><span class="label">% Chg</span><span class="value" id="sPct">—</span></div>
+      <div class="stat"><span class="label">High</span><span class="value" id="sHigh">—</span></div>
+      <div class="stat"><span class="label">Low</span><span class="value" id="sLow">—</span></div>
+      <div class="stat"><span class="label">MA20</span><span class="value" id="sMa20">—</span></div>
+      <div class="stat"><span class="label">MA50</span><span class="value" id="sMa50">—</span></div>
+    </div>
+
+    <!-- Alert banner -->
+    <div id="alertBanner"></div>
+
+    <!-- Chart area -->
+    <div class="chart-area">
+      <div id="priceChart" style="position:relative">
+        <div class="loading-msg" id="loadingMsg">Select a commodity</div>
+      </div>
+      <div id="volumeChart"></div>
+      <div id="cotChart" style="display:none"></div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend" id="legend" style="display:none">
+      <span><span class="legend-line" style="background:#6366f1"></span> Candles</span>
+      <span><span class="legend-line" style="background:#f59e0b"></span> MA20</span>
+      <span><span class="legend-line" style="background:#3b82f6"></span> MA50</span>
+      <span id="cotLegend" style="display:none">
+        <span class="legend-line" style="background:#a855f7"></span> COT Net Commercial
+      </span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   COMMODITY CATALOGUE — must match update_data.py
+══════════════════════════════════════════════════════════ */
+const COMMODITIES = [
+  { name: "HSCEI",             csv: "HSCEI_data.csv",           hasCot: false },
+  { name: "Gold",              csv: "Gold_data.csv",            hasCot: true  },
+  { name: "Silver",            csv: "Silver_data.csv",          hasCot: true  },
+  { name: "Copper",            csv: "Copper_data.csv",          hasCot: true  },
+  { name: "Aluminum",          csv: "Aluminum_data.csv",        hasCot: false },
+  { name: "Nickel",            csv: "Nickle_data.csv",          hasCot: false },
+  { name: "Tin",               csv: "Tin_data.csv",             hasCot: false },
+  { name: "Iron Ore",          csv: "Iron_Ore_data.csv",        hasCot: false },
+  { name: "Brent",             csv: "Brent_data.csv",           hasCot: true  },
+  { name: "Natural Gas",       csv: "Natural_Gas_data.csv",     hasCot: true  },
+  { name: "Bitcoin",           csv: "Bitcoin_data.csv",         hasCot: false },
+  { name: "Sugar #11",         csv: "Sugar_NO11_data.csv",      hasCot: true  },
+  { name: "Cotton #2",         csv: "Cotton_No2_data.csv",      hasCot: true  },
+  { name: "Coffee",            csv: "Coffee_data.csv",          hasCot: true  },
+  { name: "Cocoa",             csv: "Cocoa_data.csv",           hasCot: true  },
+  { name: "Palm",              csv: "Palm_data.csv",            hasCot: false },
+  { name: "Rubber",            csv: "Rubber_data.csv",          hasCot: false },
+  { name: "Feeder Cattle",     csv: "FeederCattle_data.csv",    hasCot: true  },
+  { name: "Wheat",             csv: "Wheat_data.csv",           hasCot: false },
+  { name: "Corn",              csv: "Corn_data.csv",            hasCot: false },
+  { name: "Soybean",           csv: "Soybean_data.csv",         hasCot: false },
+  { name: "CBOT Soybean Oil",  csv: "SoybeanOil_data.csv",      hasCot: false },
+  { name: "CBOT Soybean Meal", csv: "SoybeanMeal_data.csv",     hasCot: false },
+  { name: "ZCE Rapeseed Oil",  csv: "RapeseedOil_ZCE_data.csv", hasCot: false },
+  { name: "ZCE Rapeseed Meal", csv: "RapeseedMeal_ZCE_data.csv",hasCot: false },
+  { name: "BMD Palm",          csv: "Palm_BMD_data.csv",        hasCot: false },
+  { name: "ICE Rapeseed",      csv: "Rapeseed_ICE_data.csv",    hasCot: false },
+];
+
+/* ══════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════ */
+let currentCommodity = null;
+let showMA  = true;
+let showCOT = false;
+let dayWindow = 365;
+
+// Charts
+let priceChart, volumeChart, cotChart;
+let candleSeries, ma20Series, ma50Series, volumeSeries, cotSeries;
+
+// Sidebar summary data (loaded once per commodity)
+const summaryCache = {};
+
+/* ══════════════════════════════════════════════════════════
+   CHART SETUP
+══════════════════════════════════════════════════════════ */
+const chartOpts = (container) => ({
+  container,
+  layout: { background: { color: "#0f1117" }, textColor: "#94a3b8" },
+  grid:   { vertLines: { color: "#1e2130" }, horzLines: { color: "#1e2130" } },
+  crosshair: { mode: 1 },
+  rightPriceScale: { borderColor: "#2a2d3a" },
+  timeScale: { borderColor: "#2a2d3a", timeVisible: true },
+  handleScroll: true, handleScale: true,
+});
+
+function initCharts() {
+  // Price
+  priceChart   = LightweightCharts.createChart(document.getElementById("priceChart"), {
+    ...chartOpts(document.getElementById("priceChart")),
+    height: document.getElementById("priceChart").clientHeight || 400,
+  });
+  candleSeries = priceChart.addCandlestickSeries({
+    upColor: "#22c55e", downColor: "#ef4444",
+    borderUpColor: "#22c55e", borderDownColor: "#ef4444",
+    wickUpColor: "#22c55e", wickDownColor: "#ef4444",
+  });
+  ma20Series = priceChart.addLineSeries({ color: "#f59e0b", lineWidth: 1.5, priceLineVisible: false });
+  ma50Series = priceChart.addLineSeries({ color: "#3b82f6", lineWidth: 1.5, priceLineVisible: false });
+
+  // Volume
+  volumeChart  = LightweightCharts.createChart(document.getElementById("volumeChart"), {
+    ...chartOpts(document.getElementById("volumeChart")),
+    height: 100,
+  });
+  volumeSeries = volumeChart.addHistogramSeries({
+    color: "#334155", priceFormat: { type: "volume" },
+    priceScaleId: "volume",
+  });
+  volumeChart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } });
+
+  // COT
+  cotChart = LightweightCharts.createChart(document.getElementById("cotChart"), {
+    ...chartOpts(document.getElementById("cotChart")),
+    height: 100,
+  });
+  cotSeries = cotChart.addLineSeries({ color: "#a855f7", lineWidth: 1.5, priceLineVisible: false });
+
+  // Sync time scales
+  priceChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (range) {
+      volumeChart.timeScale().setVisibleLogicalRange(range);
+      if (showCOT) cotChart.timeScale().setVisibleLogicalRange(range);
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   PARSE CSV
+══════════════════════════════════════════════════════════ */
+function parseCSV(text) {
+  const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+  return result.data;
+}
+
+function toTimestamp(dateStr) {
+  // Return Unix epoch seconds for lightweight-charts
+  const d = new Date(dateStr);
+  return Math.floor(d.getTime() / 1000);
+}
+
+function filterByDays(rows, days) {
+  const cutoff = Date.now() - days * 864e5;
+  return rows.filter(r => new Date(r.date || r[""] || r[Object.keys(r)[0]]).getTime() >= cutoff);
+}
+
+/* ══════════════════════════════════════════════════════════
+   LOAD & RENDER
+══════════════════════════════════════════════════════════ */
+async function loadCommodity(commodity) {
+  document.getElementById("loadingMsg").style.display = "flex";
+
+  let raw;
+  try {
+    const resp = await fetch(`data/${commodity.csv}?_=${Date.now()}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    raw = await resp.text();
+  } catch (e) {
+    document.getElementById("loadingMsg").textContent = "Data not found — run update_data.py first";
+    return;
+  }
+
+  document.getElementById("loadingMsg").style.display = "none";
+  document.getElementById("legend").style.display = "flex";
+
+  const rows = parseCSV(raw);
+  const filtered = filterByDays(rows, dayWindow);
+
+  // Build OHLCV series
+  const candles = [], vol = [], ma20 = [], ma50 = [];
+  let lastDate = null;
+
+  for (const r of filtered) {
+    const dateKey = r.date || r[""];
+    if (!dateKey) continue;
+    const t = toTimestamp(dateKey);
+    const o = +r.open, h = +r.high, l = +r.low, c = +r.close;
+    if (isNaN(o) || isNaN(c)) continue;
+
+    candles.push({ time: t, open: o, high: h, low: l, close: c });
+
+    const v = +r.aggregate_volume || +r.volume;
+    if (!isNaN(v) && v > 0)
+      vol.push({ time: t, value: v, color: c >= o ? "#1e3a2e" : "#3a1e1e" });
+
+    if (r.ma20 && !isNaN(+r.ma20)) ma20.push({ time: t, value: +r.ma20 });
+    if (r.ma50 && !isNaN(+r.ma50)) ma50.push({ time: t, value: +r.ma50 });
+
+    lastDate = dateKey;
+  }
+
+  // COT
+  const cotData = [];
+  if (commodity.hasCot && showCOT) {
+    for (const r of filtered) {
+      const t = toTimestamp(r.date || r[""]);
+      const cv = +r.cot_commercial_net;
+      if (!isNaN(cv) && cv !== 0) cotData.push({ time: t, value: cv });
+    }
+  }
+
+  // Set series data
+  candleSeries.setData(candles);
+  volumeSeries.setData(vol);
+  ma20Series.setData(showMA ? ma20 : []);
+  ma50Series.setData(showMA ? ma50 : []);
+  cotSeries.setData(cotData);
+
+  // COT panel visibility
+  const cotPanel = document.getElementById("cotChart");
+  cotPanel.style.display = (showCOT && cotData.length > 0) ? "" : "none";
+  document.getElementById("cotLegend").style.display =
+    (showCOT && cotData.length > 0) ? "" : "none";
+  resizeCharts();
+
+  // Stats
+  if (candles.length > 1) {
+    const last = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+    const chg = last.close - prev.close;
+    const pct = (chg / prev.close) * 100;
+    const fmt = v => v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
+    document.getElementById("sName").textContent = commodity.name;
+    document.getElementById("sLast").textContent = fmt(last.close);
+    const chgEl = document.getElementById("sChg");
+    const pctEl = document.getElementById("sPct");
+    chgEl.textContent = (chg >= 0 ? "+" : "") + fmt(chg);
+    pctEl.textContent = (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%";
+    chgEl.style.color = chg >= 0 ? "var(--green)" : "var(--red)";
+    pctEl.style.color = chg >= 0 ? "var(--green)" : "var(--red)";
+    document.getElementById("sHigh").textContent = fmt(last.high);
+    document.getElementById("sLow").textContent  = fmt(last.low);
+
+    const lastMa20 = ma20.length ? ma20[ma20.length-1].value : null;
+    const lastMa50 = ma50.length ? ma50[ma50.length-1].value : null;
+    document.getElementById("sMa20").textContent = lastMa20 ? fmt(lastMa20) : "—";
+    document.getElementById("sMa50").textContent = lastMa50 ? fmt(lastMa50) : "—";
+
+    // Cross detection for alert banner
+    const banner = document.getElementById("alertBanner");
+    if (ma20.length >= 2 && ma50.length >= 2) {
+      const n  = ma20.length - 1;
+      const pfA = ma20[n-1].value, pfB = ma50[n-1].value;
+      const cfA = ma20[n].value,   cfB = ma50[n].value;
+      if (pfA <= pfB && cfA > cfB) {
+        banner.className = "golden";
+        banner.style.display = "flex";
+        banner.innerHTML = `🟡 <strong>Golden Cross</strong>: MA20 just crossed above MA50 — bullish signal`;
+      } else if (pfA >= pfB && cfA < cfB) {
+        banner.className = "death";
+        banner.style.display = "flex";
+        banner.innerHTML = `💀 <strong>Death Cross</strong>: MA20 just crossed below MA50 — bearish signal`;
+      } else {
+        banner.style.display = "none";
+      }
+    } else {
+      banner.style.display = "none";
+    }
+
+    // Cache for sidebar
+    summaryCache[commodity.csv] = {
+      last: last.close, chg, pct,
+      crossSignal: detectSignal(ma20, ma50),
+    };
+    updateSidebarItem(commodity);
+  }
+
+  // Last updated
+  if (lastDate)
+    document.getElementById("lastUpdated").textContent = `Last data: ${lastDate}`;
+}
+
+function detectSignal(ma20, ma50) {
+  if (ma20.length < 2 || ma50.length < 2) return null;
+  const n  = ma20.length - 1;
+  const pfA = ma20[n-1].value, pfB = ma50[n-1].value;
+  const cfA = ma20[n].value,   cfB = ma50[n].value;
+  if (pfA <= pfB && cfA > cfB) return "golden";
+  if (pfA >= pfB && cfA < cfB) return "death";
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════════════════ */
+function buildSidebar() {
+  const list = document.getElementById("commodityList");
+  const sel  = document.getElementById("commoditySelect");
+  list.innerHTML = "";
+  sel.innerHTML  = "";
+
+  for (const c of COMMODITIES) {
+    // Sidebar row
+    const div = document.createElement("div");
+    div.className = "commodity-item";
+    div.dataset.csv = c.csv;
+    div.innerHTML = `
+      <span>${c.name}</span>
+      <span class="chg neu" id="chg-${c.csv}">—
+        <span class="signal-dot" id="dot-${c.csv}" style="display:none"></span>
+      </span>`;
+    div.addEventListener("click", () => selectCommodity(c));
+    list.appendChild(div);
+
+    // Dropdown option
+    const opt = document.createElement("option");
+    opt.value = c.csv;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  }
+}
+
+function selectCommodity(c) {
+  currentCommodity = c;
+  // Sidebar highlight
+  document.querySelectorAll(".commodity-item").forEach(el => el.classList.remove("active"));
+  document.querySelector(`.commodity-item[data-csv="${c.csv}"]`)?.classList.add("active");
+  // Dropdown sync
+  document.getElementById("commoditySelect").value = c.csv;
+  loadCommodity(c);
+}
+
+function updateSidebarItem(c) {
+  const info = summaryCache[c.csv];
+  if (!info) return;
+  const el = document.getElementById(`chg-${c.csv}`);
+  const dot = document.getElementById(`dot-${c.csv}`);
+  if (!el) return;
+  const sign = info.pct >= 0 ? "+" : "";
+  el.firstChild.textContent = `${sign}${info.pct.toFixed(1)}%`;
+  el.className = `chg ${info.pct > 0 ? "pos" : info.pct < 0 ? "neg" : "neu"}`;
+  if (info.crossSignal) {
+    dot.style.display = "inline-block";
+    dot.className = `signal-dot ${info.crossSignal}`;
+  } else {
+    dot.style.display = "none";
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESIZE
+══════════════════════════════════════════════════════════ */
+function resizeCharts() {
+  const area    = document.querySelector(".chart-area");
+  const volH    = 100;
+  const cotH    = showCOT ? 100 : 0;
+  const priceH  = area.clientHeight - volH - cotH;
+  priceChart.resize(area.clientWidth,  Math.max(priceH, 100));
+  volumeChart.resize(area.clientWidth, volH);
+  cotChart.resize(area.clientWidth,    cotH || 100);
+}
+
+window.addEventListener("resize", resizeCharts);
+
+/* ══════════════════════════════════════════════════════════
+   CONTROLS
+══════════════════════════════════════════════════════════ */
+document.getElementById("commoditySelect").addEventListener("change", e => {
+  const c = COMMODITIES.find(x => x.csv === e.target.value);
+  if (c) selectCommodity(c);
+});
+
+document.getElementById("tfGroup").addEventListener("click", e => {
+  const btn = e.target.closest("[data-days]");
+  if (!btn) return;
+  document.querySelectorAll("#tfGroup button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  dayWindow = +btn.dataset.days;
+  if (currentCommodity) loadCommodity(currentCommodity);
+});
+
+document.getElementById("toggleMA").addEventListener("click", function() {
+  showMA = !showMA;
+  this.classList.toggle("active", showMA);
+  if (currentCommodity) loadCommodity(currentCommodity);
+});
+
+document.getElementById("toggleCOT").addEventListener("click", function() {
+  showCOT = !showCOT;
+  this.classList.toggle("active", showCOT);
+  if (currentCommodity) loadCommodity(currentCommodity);
+});
+
+/* ══════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════ */
+window.addEventListener("DOMContentLoaded", () => {
+  initCharts();
+  buildSidebar();
+  // Default: open Gold
+  selectCommodity(COMMODITIES[1]);
+});
+</script>
+</body>
+</html>
