@@ -1,5 +1,4 @@
 date,open,high,low,close,aggregate_open_interest,aggregate_volume,cot_commercial_net,specs_positioning,ma20,ma50,commodity,ticker
-2021-07-07,3053.0,3059.0,2960.0,2997.0,,987953,,,,,ZCE Rapeseed Meal,RM0
 2021-07-08,2986.0,2999.0,2974.0,2988.0,,678187,,,,,ZCE Rapeseed Meal,RM0
 2021-07-09,2970.0,3001.0,2952.0,2980.0,,782905,,,,,ZCE Rapeseed Meal,RM0
 2021-07-12,2978.0,3021.0,2948.0,3001.0,,1020208,,,,,ZCE Rapeseed Meal,RM0
@@ -18,7 +17,7 @@ date,open,high,low,close,aggregate_open_interest,aggregate_volume,cot_commercial
 2021-07-29,2930.0,2966.0,2911.0,2965.0,,627950,,,,,ZCE Rapeseed Meal,RM0
 2021-07-30,2970.0,3016.0,2952.0,3012.0,,770779,,,,,ZCE Rapeseed Meal,RM0
 2021-08-02,2995.0,3012.0,2942.0,3007.0,,780671,,,,,ZCE Rapeseed Meal,RM0
-2021-08-03,3009.0,3023.0,2974.0,3013.0,,768218,,,3005.15,,ZCE Rapeseed Meal,RM0
+2021-08-03,3009.0,3023.0,2974.0,3013.0,,768218,,,,,ZCE Rapeseed Meal,RM0
 2021-08-04,2994.0,2995.0,2954.0,2976.0,,859407,,,3004.1,,ZCE Rapeseed Meal,RM0
 2021-08-05,2972.0,2983.0,2934.0,2937.0,,782794,,,3001.55,,ZCE Rapeseed Meal,RM0
 2021-08-06,2933.0,2969.0,2926.0,2955.0,,756213,,,3000.3,,ZCE Rapeseed Meal,RM0
@@ -48,7 +47,7 @@ date,open,high,low,close,aggregate_open_interest,aggregate_volume,cot_commercial
 2021-09-09,2822.0,2834.0,2774.0,2788.0,,1151922,,,2891.3,,ZCE Rapeseed Meal,RM0
 2021-09-10,2788.0,2825.0,2779.0,2824.0,,892184,,,2881.25,,ZCE Rapeseed Meal,RM0
 2021-09-13,2828.0,2877.0,2825.0,2868.0,,1109803,,,2876.2,,ZCE Rapeseed Meal,RM0
-2021-09-14,2861.0,2901.0,2849.0,2892.0,,936512,,,2871.25,2947.4,ZCE Rapeseed Meal,RM0
+2021-09-14,2861.0,2901.0,2849.0,2892.0,,936512,,,2871.25,,ZCE Rapeseed Meal,RM0
 2021-09-15,2896.0,2907.0,2881.0,2901.0,,715450,,,2866.75,2945.48,ZCE Rapeseed Meal,RM0
 2021-09-16,2902.0,2927.0,2884.0,2924.0,,866634,,,2866.75,2944.2,ZCE Rapeseed Meal,RM0
 2021-09-17,2923.0,2965.0,2916.0,2939.0,,962349,,,2869.45,2943.38,ZCE Rapeseed Meal,RM0
@@ -1209,3 +1208,4 @@ date,open,high,low,close,aggregate_open_interest,aggregate_volume,cot_commercial
 2026-07-02,2277.0,2291.0,2265.0,2275.0,,605710,,,2270.65,2320.92,ZCE Rapeseed Meal,RM0
 2026-07-03,2278.0,2287.0,2255.0,2257.0,,514160,,,2269.35,2319.34,ZCE Rapeseed Meal,RM0
 2026-07-06,2256.0,2308.0,2254.0,2304.0,,753145,,,2271.75,2318.3,ZCE Rapeseed Meal,RM0
+2026-07-07,2312.0,2326.0,2301.0,2318.0,,701991,,,2275.65,2316.46,ZCE Rapeseed Meal,RM0
